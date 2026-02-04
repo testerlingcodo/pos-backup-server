@@ -1,8 +1,10 @@
 const express = require('express');
+const cors = require('cors');  // ← add this
 const app = express();
 
 const API_KEY = process.env.API_KEY || '12664365001';
 
+app.use(cors());  // ← add this
 app.use(express.json({ limit: '20mb' })); // images can be big
 
 function checkApiKey(req, res, next) {
