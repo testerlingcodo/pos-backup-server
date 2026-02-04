@@ -1,11 +1,14 @@
+// POS Backup Server - Deploy to Render.com
+// Run: npm install express cors && node server.js
+
 const express = require('express');
-const cors = require('cors');  // ← add this
+const cors = require('cors');
 const app = express();
 
 const API_KEY = process.env.API_KEY || '12664365001';
 
-app.use(cors());  // ← add this
-app.use(express.json({ limit: '20mb' })); // images can be big
+app.use(cors());
+app.use(express.json({ limit: '20mb' }));
 
 function checkApiKey(req, res, next) {
   const key = req.header('X-API-KEY');
@@ -13,13 +16,15 @@ function checkApiKey(req, res, next) {
   next();
 }
 
+// In-memory store (for real backup, use MySQL/Postgres)
 let store = {
   transactions: [],
   products: [],
   cashCounts: [],
 };
 
-// NOTE: For real backup, palitan mo ito ng DATABASE (MySQL/Postgres).
+// ===== SYNC (POST) =====
+
 app.post('/api/sync-transactions', checkApiKey, (req, res) => {
   const list = req.body.transactions || [];
   store.transactions.push(...list);
@@ -38,7 +43,34 @@ app.post('/api/sync-cashcount', checkApiKey, (req, res) => {
   res.json({ success: true, synced: list.length });
 });
 
+// ===== RESTORE (GET) - Filter by storeId =====
+
+app.get('/api/restore-products', checkApiKey, (req, res) => {
+  const storeId = req.query.storeId || '';
+  const products = storeId
+    ? store.products.filter((p) => p.storeId === storeId)
+    : store.products;
+  res.json({ products });
+});
+
+app.get('/api/restore-transactions', checkApiKey, (req, res) => {
+  const storeId = req.query.storeId || '';
+  const transactions = storeId
+    ? store.transactions.filter((t) => t.storeId === storeId)
+    : store.transactions;
+  res.json({ transactions });
+});
+
+app.get('/api/restore-cashcount', checkApiKey, (req, res) => {
+  const storeId = req.query.storeId || '';
+  const cashCounts = storeId
+    ? store.cashCounts.filter((c) => c.storeId === storeId)
+    : store.cashCounts;
+  res.json({ cashCounts });
+});
+
+// Health check
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log('Backup server running on', port));
+app.listen(port, () => console.log('POS Backup server running on', port));
